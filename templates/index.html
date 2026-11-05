@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Search and Filter Panel (FR-ITEM-08, FR-ITEM-09) -->
+<div class="p-4 mb-4 bg-white rounded shadow-sm">
+    <h3 class="mb-3 fw-bold">Campus Property Catalog</h3>
+    <form method="GET" action="/" class="row g-2">
+        <div class="col-md-5">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search keywords (e.g. Dell laptop, wallet)...">
+        </div>
+        <div class="col-md-3">
+            <select name="category" class="form-select">
+                <option value="">All Categories</option>
+                <option value="Electronics" {% if category == 'Electronics' %}selected{% endif %}>Electronics</option>
+                <option value="Personal Belongings" {% if category == 'Personal Belongings' %}selected{% endif %}>Personal Belongings</option>
+                <option value="Documents/Cards" {% if category == 'Documents/Cards' %}selected{% endif %}>Documents/Cards</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="type" class="form-select">
+                <option value="">All Types</option>
+                <option value="LOST" {% if report_type == 'LOST' %}selected{% endif %}>Lost</option>
+                <option value="FOUND" {% if report_type == 'FOUND' %}selected{% endif %}>Found</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Item Cards Grid (FR-ITEM-10, NFR-PRIV-02) -->
+<div class="row">
+    {% if not items %}
+        <div class="col-12 text-center py-5">
+            <p class="text-muted fs-5">No matching items found. Have you lost something? <a href="/report">File a lost report</a>.</p>
+        </div>
+    {% endif %}
+    {% for item in items %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if item.photo_url %}
+                    <img src="{{ item.photo_url }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="Item photo">
+                {% endif %}
+                <div class="card-body">
+                    <span class="badge {% if item.report_type == 'FOUND' %}bg-success{% else %}bg-warning text-dark{% endif %} mb-2">
+                        {{ item.report_type }}
+                    </span>
+                    <span class="badge bg-secondary mb-2">{{ item.current_state }}</span>
+                    <h5 class="card-title fw-bold">{{ item.category }}</h5>
+                    <p class="card-text text-muted small mb-1"><strong>Location:</strong> {{ item.campus_location }}</p>
+                    <p class="card-text text-muted small mb-2"><strong>Date:</strong> {{ item.event_date }}</p>
+                    <p class="card-text">{{ item.general_description }}</p>
+
+                    {% if item.report_type == 'FOUND' and item.current_state in ['REPORTED', 'IN_CUSTODY'] %}
+                        <hr>
+                        <button class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#claimModal{{ item.item_id }}">
+                            Claim Ownership
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Verification Modal (FR-CLM-03, FR-CLM-04, NFR-SEC-02) -->
+        <div class="modal fade" id="claimModal{{ item.item_id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <form action="/claim/{{ item.item_id }}" method="POST" class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Claim Item #{{ item.item_id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info small">
+                            <strong>Policy Disclaimer:</strong> Specific identifiers are concealed to prevent fraudulent claims. State distinguishing features (e.g. lock-screen wallpaper, engraving, serial fragment, or bag contents).
+                        </div>
+                        <label class="form-label fw-bold">Private Proof-of-Ownership Clues</label>
+                        <textarea name="proof_answers" class="form-control" rows="3" required placeholder="e.g. Serial ending in 4821, blue sticker on bottom right corner"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Private Claim</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

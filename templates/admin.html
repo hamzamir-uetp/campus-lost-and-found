@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-4 fw-bold">Campus Administration & Audit</h3>
+
+<!-- Summary Metric Cards (FR-ADM-06) -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 bg-white text-center shadow-sm">
+            <h6 class="text-muted small text-uppercase">Total Reported</h6>
+            <h3 class="fw-bold">{{ metrics.total_reported }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white text-center shadow-sm">
+            <h6 class="text-muted small text-uppercase">Held In Custody</h6>
+            <h3 class="fw-bold text-info">{{ metrics.in_custody }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white text-center shadow-sm">
+            <h6 class="text-muted small text-uppercase">Pending Claims</h6>
+            <h3 class="fw-bold text-warning">{{ metrics.pending_claims }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 bg-white text-center shadow-sm">
+            <h6 class="text-muted small text-uppercase">Returned Items</h6>
+            <h3 class="fw-bold text-success">{{ metrics.returned }}</h3>
+        </div>
+    </div>
+</div>
+
+<!-- Immutable Audit Trail Table (FR-ADM-04, FR-ADM-05) -->
+<div class="card p-3 bg-white shadow-sm">
+    <h5 class="fw-bold mb-3">Immutable Audit Log</h5>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Log ID</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Record ID</th>
+                    <th>Old State</th>
+                    <th>New State</th>
+                    <th>Client IP</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_trail %}
+                <tr>
+                    <td>#{{ log.audit_id }}</td>
+                    <td>{{ log.actor_name or 'System' }}</td>
+                    <td><span class="badge bg-dark">{{ log.action_type }}</span></td>
+                    <td>{{ log.target_record_id }}</td>
+                    <td>{{ log.old_state or '-' }}</td>
+                    <td><strong>{{ log.new_state }}</strong></td>
+                    <td><code>{{ log.client_ip }}</code></td>
+                    <td class="small text-muted">{{ log.timestamp }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-3">No audit records logged yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

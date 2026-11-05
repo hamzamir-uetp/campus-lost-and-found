@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-4 fw-bold">Custodian Control Desk</h3>
+
+<div class="row mb-4">
+    <!-- 1. Physical Intake of Found Property (FR-CUS-01, FR-CUS-02) -->
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm p-3 h-100 bg-white">
+            <h5 class="text-primary fw-bold">1. Intake Found Property</h5>
+            <p class="small text-muted">Assign incoming found items to a designated security storage locker/bin.</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item</th>
+                            <th>Description</th>
+                            <th>Storage Bin / Locker</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in intake_items %}
+                        <tr>
+                            <td>#{{ item.item_id }}</td>
+                            <td>{{ item.general_description }}</td>
+                            <form action="/custody/intake" method="POST">
+                                <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                                <td>
+                                    <input type="text" name="storage_location" class="form-control form-control-sm" placeholder="e.g. Desk A - Locker 02" required>
+                                </td>
+                                <td>
+                                    <button type="submit" class="btn btn-sm btn-success">Take Custody</button>
+                                </td>
+                            </form>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-muted text-center py-3">No incoming found items awaiting intake.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Currently Held Inventory (FR-CUS-05) -->
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm p-3 h-100 bg-white">
+            <h5 class="text-secondary fw-bold">2. Items in Custody</h5>
+            <p class="small text-muted">Active items securely held under security supervision.</p>
+            <ul class="list-group list-group-flush">
+                {% for item in held_items %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                    <div>
+                        <strong>#{{ item.item_id }} - {{ item.category }}</strong>
+                        <div class="small text-muted">{{ item.general_description }} ({{ item.campus_location }})</div>
+                    </div>
+                    <span class="badge bg-info text-dark">IN_CUSTODY</span>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted text-center py-3 px-0">No property currently held in custody.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Adjudicate Claims & Execute Handover (FR-CLM-05, FR-HND-01) -->
+<div class="card shadow-sm p-3 bg-white">
+    <h5 class="text-dark fw-bold">3. Adjudicate Claims & In-Person Handover</h5>
+    <p class="small text-muted">Review private ownership clues. When approved, mandate physical campus ID confirmation prior to releasing property.</p>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Claim</th>
+                    <th>Item Target</th>
+                    <th>Claimant</th>
+                    <th>Submitted Proof Clues (Private)</th>
+                    <th>Status</th>
+                    <th>Custodial Adjudication / Release</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in claims %}
+                <tr>
+                    <td>#{{ claim.claim_id }}</td>
+                    <td><strong>Item #{{ claim.item_id }}:</strong> {{ claim.general_description }}</td>
+                    <td>{{ claim.claimant_name }}<br><small class="text-muted">{{ claim.claimant_email }}</small></td>
+                    <td class="bg-light text-danger fw-semibold">{{ claim.proof_answers }}</td>
+                    <td>
+                        <span class="badge {% if claim.status == 'APPROVED' %}bg-success{% elif claim.status == 'PENDING_REVIEW' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                            {{ claim.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if claim.status in ['PENDING_REVIEW', 'NEEDS_MORE_INFO'] %}
+                            <div class="d-flex gap-2">
+                                <form action="/claims/adjudicate" method="POST">
+                                    <input type="hidden" name="claim_id" value="{{ claim.claim_id }}">
+                                    <input type="hidden" name="decision" value="APPROVED">
+                                    <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                </form>
+                                <form action="/claims/adjudicate" method="POST">
+                                    <input type="hidden" name="claim_id" value="{{ claim.claim_id }}">
+                                    <input type="hidden" name="decision" value="REJECTED">
+                                    <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                </form>
+                            </div>
+                        {% elif claim.status == 'APPROVED' %}
+                            <!-- Mandatory In-Person ID Verification (FR-HND-01) -->
+                            <form action="/custody/handover" method="POST" class="p-2 border rounded bg-light">
+                                <input type="hidden" name="claim_id" value="{{ claim.claim_id }}">
+                                <input type="hidden" name="item_id" value="{{ claim.item_id }}">
+                                <input type="hidden" name="claimant_id" value="{{ claim.claimant_id }}">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="campus_id_verified" id="check_{{ claim.claim_id }}" required>
+                                    <label class="form-check-label small fw-bold" for="check_{{ claim.claim_id }}">
+                                        Verified Physical Campus ID Card in person
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Execute Handover</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-muted text-center py-3">No active claims awaiting evaluation.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
