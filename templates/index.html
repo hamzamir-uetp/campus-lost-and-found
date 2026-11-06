@@ -1,88 +1,850 @@
 {% extends 'base.html' %}
 {% block content %}
-<!-- Search and Filter Panel (FR-ITEM-08, FR-ITEM-09) -->
-<div class="p-4 mb-4 bg-white rounded shadow-sm">
-    <h3 class="mb-3 fw-bold">Campus Property Catalog</h3>
-    <form method="GET" action="/" class="row g-2">
-        <div class="col-md-5">
-            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search keywords (e.g. Dell laptop, wallet)...">
+
+<style>
+    /* 1. Flat, Clean Hero Banner (No corner icon, border, or heavy drop-shadow) */
+    .app-hero-banner {
+        background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%);
+        border-radius: 20px;
+        color: #ffffff;
+        position: relative;
+    }
+
+    /* Standard Header Pill Tag */
+    .hero-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 9999px;
+        padding: 0.35rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    /* 2. Search & Filter Bar */
+    .search-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+    }
+
+    /* 3. Tab Pills */
+    .custom-tabs .nav-link {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: #475569;
+        background-color: #ffffff;
+        border: 1.5px solid var(--border-color);
+        border-radius: 12px;
+        padding: 0.65rem 1.4rem;
+        transition: all 0.2s ease;
+    }
+
+    .custom-tabs .nav-link.active {
+        background: #047857 !important;
+        border-color: #047857 !important;
+        color: #ffffff !important;
+    }
+
+    /* 4. Item Cards & Thumbnails */
+    .thumb-box {
+        position: relative;
+        width: 100%;
+        height: 195px;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .thumb-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.25s ease;
+        cursor: pointer;
+    }
+
+    .thumb-box:hover .thumb-img {
+        transform: scale(1.04);
+    }
+
+    .zoom-tag {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(15, 23, 42, 0.85);
+        color: #ffffff;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    /* Standard Classification Badges */
+    .badge-found {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+    }
+
+    .badge-lost {
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fecdd3;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+    }
+
+    /* Meta Info Box */
+    .meta-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.86rem;
+    }
+
+    /* Standardized Status Badges */
+    .badge-status-custody {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        font-weight: 700;
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 6px;
+    }
+
+    .badge-status-reported {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+        font-weight: 700;
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 6px;
+    }
+
+    .badge-status-missing {
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fecdd3;
+        font-weight: 700;
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 6px;
+    }
+
+    .badge-status-returned {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        font-weight: 700;
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 6px;
+    }
+
+    /* Interactive Workflow Cards */
+    .workflow-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.8rem;
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .workflow-card:hover {
+        transform: translateY(-2px);
+        border-color: #cbd5e1;
+    }
+
+    .step-circle {
+        width: 36px;
+        height: 36px;
+        background: #047857;
+        color: #ffffff;
+        font-weight: 800;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<!-- 1. HERO SECTION (NO BULKY CORNER ICON, NO BORDER, NO BOX-SHADOW) -->
+<div class="app-hero-banner p-4 p-md-5 mb-4">
+    <div class="row align-items-center">
+        
+        {# Role A: ADMIN #}
+        {% if session.get('role') == 'ADMIN' %}
+            <div class="col-lg-8">
+                <div class="hero-tag mb-3">
+                    <i class="bi bi-shield-lock-fill"></i> Central Administrative Console
+                </div>
+                <h1 class="fw-bold display-6 mb-2">Campus Inventory &amp; Custody Oversight</h1>
+                <p class="opacity-90 lead fs-6 mb-0" style="max-width: 650px;">
+                    Monitor active lost and found records, inspect physical storage assignments, and view system activity logs.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <a href="/admin" class="btn btn-light text-dark fw-bold px-4 py-2">
+                    <i class="bi bi-bar-chart-line-fill me-1 text-success"></i> Open Audit Console
+                </a>
+            </div>
+
+        {# Role B: CUSTODIAN #}
+        {% elif session.get('role') == 'CUSTODIAN' %}
+            <div class="col-lg-8">
+                <div class="hero-tag mb-3">
+                    <i class="bi bi-safe2-fill"></i> Custodian Operations Desk
+                </div>
+                <h1 class="fw-bold display-6 mb-2">Property Intake &amp; Handover Management</h1>
+                <p class="opacity-90 lead fs-6 mb-0" style="max-width: 650px;">
+                    Review submitted ownership clues, assign incoming items to secure storage, and confirm campus ID before releasing property.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <a href="/custody" class="btn btn-light text-dark fw-bold px-4 py-2">
+                    <i class="bi bi-safe2 me-1 text-success"></i> Enter Custodian Desk
+                </a>
+            </div>
+
+        {# Role C: STUDENT #}
+        {% elif session.get('role') == 'STUDENT' %}
+            <div class="col-12">
+                <div class="hero-tag mb-3">
+                    <i class="bi bi-shield-check"></i> Campus Property Recovery Portal
+                </div>
+                <h1 class="fw-bold display-6 mb-3">Lost Something on Campus?</h1>
+                <p class="opacity-90 lead fs-6 mb-4" style="max-width: 720px;">
+                    Check our verified property records to find your lost items, or report something you found to help return it to its owner.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="/report" class="btn btn-theme px-4 py-2">
+                        <i class="bi bi-plus-circle me-1"></i> Report an Item
+                    </a>
+                    <a href="/my-claims" class="btn btn-outline-light px-4 py-2">
+                        <i class="bi bi-journal-check me-1"></i> Track My Claims
+                    </a>
+                </div>
+            </div>
+
+        {# Role D: GUEST / ANONYMOUS #}
+        {% else %}
+            <div class="col-12">
+                <div class="hero-tag mb-3">
+                    <i class="bi bi-shield-check"></i> Campus Property Recovery Portal
+                </div>
+                <h1 class="fw-bold display-6 mb-3">Lost Something on Campus?</h1>
+                <p class="opacity-90 lead fs-6 mb-4" style="max-width: 720px;">
+                    Check our verified property records to find your lost items, or report something you found to help return it to its owner.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-theme px-4 py-2" data-bs-toggle="modal" data-bs-target="#reportAuthPromptModal">
+                        <i class="bi bi-plus-circle me-1"></i> Report an Item
+                    </button>
+                    <a href="#how-it-works" class="btn btn-outline-light px-4 py-2">
+                        <i class="bi bi-info-circle me-1"></i> How It Works
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- 2. SEARCH & FILTER BAR -->
+<div class="search-card p-3 mb-4">
+    <form method="GET" action="/" class="row g-2 align-items-center">
+        <div class="col-md-6 col-lg-7">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search text-success"></i></span>
+                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by item name, description, or keyword..." value="{{ query or '' }}">
+            </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4 col-lg-3">
             <select name="category" class="form-select">
                 <option value="">All Categories</option>
                 <option value="Electronics" {% if category == 'Electronics' %}selected{% endif %}>Electronics</option>
+                <option value="Books / Documents" {% if category == 'Books / Documents' %}selected{% endif %}>Books &amp; Documents</option>
                 <option value="Personal Belongings" {% if category == 'Personal Belongings' %}selected{% endif %}>Personal Belongings</option>
-                <option value="Documents/Cards" {% if category == 'Documents/Cards' %}selected{% endif %}>Documents/Cards</option>
+                <option value="Cards / IDs" {% if category == 'Cards / IDs' %}selected{% endif %}>Cards &amp; IDs</option>
+                <option value="Clothing / Accessories" {% if category == 'Clothing / Accessories' %}selected{% endif %}>Clothing &amp; Accessories</option>
+                <option value="Other" {% if category == 'Other' %}selected{% endif %}>Other</option>
             </select>
         </div>
-        <div class="col-md-2">
-            <select name="type" class="form-select">
-                <option value="">All Types</option>
-                <option value="LOST" {% if report_type == 'LOST' %}selected{% endif %}>Lost</option>
-                <option value="FOUND" {% if report_type == 'FOUND' %}selected{% endif %}>Found</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        <div class="col-md-2 col-lg-2 d-grid">
+            <button type="submit" class="btn btn-theme fw-bold">
+                Filter Items
+            </button>
         </div>
     </form>
 </div>
 
-<!-- Item Cards Grid (FR-ITEM-10, NFR-PRIV-02) -->
-<div class="row">
-    {% if not items %}
-        <div class="col-12 text-center py-5">
-            <p class="text-muted fs-5">No matching items found. Have you lost something? <a href="/report">File a lost report</a>.</p>
-        </div>
-    {% endif %}
-    {% for item in items %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if item.photo_url %}
-                    <img src="{{ item.photo_url }}" class="card-img-top" style="height: 180px; object-fit: cover;" alt="Item photo">
-                {% endif %}
-                <div class="card-body">
-                    <span class="badge {% if item.report_type == 'FOUND' %}bg-success{% else %}bg-warning text-dark{% endif %} mb-2">
-                        {{ item.report_type }}
-                    </span>
-                    <span class="badge bg-secondary mb-2">{{ item.current_state }}</span>
-                    <h5 class="card-title fw-bold">{{ item.category }}</h5>
-                    <p class="card-text text-muted small mb-1"><strong>Location:</strong> {{ item.campus_location }}</p>
-                    <p class="card-text text-muted small mb-2"><strong>Date:</strong> {{ item.event_date }}</p>
-                    <p class="card-text">{{ item.general_description }}</p>
+<!-- 3. HOW IT WORKS (GUEST ONLY) -->
+{% if not session.get('user_id') %}
+<section id="how-it-works" class="mb-5 pt-2">
+    <div class="text-center mb-4">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 font-mono small">
+            SIMPLE 3-STEP PROCESS
+        </span>
+        <h3 class="fw-bold mt-2 mb-1">How Campus Recovery Works</h3>
+        <p class="text-muted small mx-auto" style="max-width: 580px;">
+            A safe and straightforward procedure to return lost items to their rightful owners.
+        </p>
+    </div>
 
-                    {% if item.report_type == 'FOUND' and item.current_state in ['REPORTED', 'IN_CUSTODY'] %}
-                        <hr>
-                        <button class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#claimModal{{ item.item_id }}">
-                            Claim Ownership
-                        </button>
-                    {% endif %}
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="workflow-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="step-circle">1</span>
+                    <i class="bi bi-pencil-square fs-3 text-success"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Report or Browse</h5>
+                <p class="text-muted small mb-0">
+                    Submit a notice if you lost an item, or report something you found. Private details like serial numbers remain hidden to prevent false claims.
+                </p>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="workflow-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="step-circle">2</span>
+                    <i class="bi bi-shield-lock-fill fs-3 text-primary"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Verify Ownership</h5>
+                <p class="text-muted small mb-0">
+                    If you see your item in the list, submit a claim with specific details only you know (e.g., stickers, wallpapers, passwords).
+                </p>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="workflow-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="step-circle">3</span>
+                    <i class="bi bi-person-check-fill fs-3 text-success"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Collect Your Item</h5>
+                <p class="text-muted small mb-0">
+                    Once your claim is approved, visit the Custody Office with your Student ID card to collect your item.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- 4. STUDENT ACTION CARDS -->
+{% if session.get('role') == 'STUDENT' %}
+<div class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <a href="/report" class="workflow-card text-decoration-none d-block">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 bg-success-subtle text-success rounded-3 fs-4">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark">Report an Item</h6>
+                            <p class="text-muted small mb-0">Submit a missing item notice or report something you found on campus.</p>
+                        </div>
+                    </div>
+                    <i class="bi bi-arrow-right text-muted fs-5"></i>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6">
+            <a href="/my-claims" class="workflow-card text-decoration-none d-block">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 bg-primary-subtle text-primary rounded-3 fs-4">
+                            <i class="bi bi-journal-check"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark">Track My Claims</h6>
+                            <p class="text-muted small mb-0">Check the review status of your claims and handover instructions.</p>
+                        </div>
+                    </div>
+                    <i class="bi bi-arrow-right text-muted fs-5"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 5. SEGREGATED REQUESTS TABS -->
+<div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+    <ul class="nav custom-tabs gap-2" id="propertyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active d-flex align-items-center gap-2" id="current-tab" data-bs-toggle="pill" data-bs-target="#current-pane" type="button" role="tab">
+                <i class="bi bi-hourglass-split"></i> Active Items &amp; Requests
+                <span class="badge bg-dark rounded-pill font-mono">{{ active_items|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link d-flex align-items-center gap-2" id="fulfilled-tab" data-bs-toggle="pill" data-bs-target="#fulfilled-pane" type="button" role="tab">
+                <i class="bi bi-check-circle-fill text-success"></i> Returned &amp; Resolved Items
+                <span class="badge bg-secondary rounded-pill font-mono">{{ fulfilled_items|length }}</span>
+            </button>
+        </li>
+    </ul>
+</div>
+
+<!-- Tab Content -->
+<div class="tab-content" id="propertyTabsContent">
+    
+    <!-- Tab 1: Active Items & Requests -->
+    <div class="tab-pane fade show active" id="current-pane" role="tabpanel">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for item in active_items %}
+            <div class="col">
+                <div class="card h-100 bg-white">
+                    <div class="card-body p-4 d-flex flex-column">
+                        
+                        <!-- Thumbnail Area -->
+                        <div class="thumb-box">
+                            {% if item.photo_url %}
+                                <img src="{{ item.photo_url }}" alt="{{ item.general_description }}" class="thumb-img" data-bs-toggle="modal" data-bs-target="#imageLightboxModal{{ item.item_id }}">
+                                <span class="zoom-tag"><i class="bi bi-zoom-in me-1"></i> Click to Zoom</span>
+                            {% else %}
+                                <div class="text-center text-muted">
+                                    {% if item.category == 'Electronics' %}
+                                        <i class="bi bi-laptop fs-1 opacity-50 text-success"></i>
+                                    {% elif item.category == 'Books / Documents' %}
+                                        <i class="bi bi-journal-text fs-1 opacity-50 text-primary"></i>
+                                    {% elif item.category == 'Cards / IDs' %}
+                                        <i class="bi bi-person-vcard fs-1 opacity-50 text-danger"></i>
+                                    {% elif item.category == 'Clothing / Accessories' %}
+                                        <i class="bi bi-watch fs-1 opacity-50 text-warning"></i>
+                                    {% else %}
+                                        <i class="bi bi-box-seam fs-1 opacity-50 text-secondary"></i>
+                                    {% endif %}
+                                    <div class="small mt-1 font-mono text-muted" style="font-size: 0.72rem;">No Photo Attached</div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Classification Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="{% if item.report_type == 'FOUND' %}badge-found{% else %}badge-lost{% endif %}">
+                                {{ item.report_type }} PROPERTY
+                            </span>
+                            <span class="text-muted small fw-semibold">
+                                <i class="bi bi-tag-fill me-1 text-success opacity-75"></i>{{ item.category }}
+                            </span>
+                        </div>
+
+                        <h5 class="fw-bold text-dark mb-1">{{ item.general_description }}</h5>
+                        <div class="font-mono text-muted mb-3" style="font-size: 0.76rem;">
+                            Ref: LF-{{ '%04d' % item.item_id }}
+                        </div>
+
+                        <!-- Meta Info Box -->
+                        <div class="meta-box mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-muted"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Location</span>
+                                <strong class="text-dark">{{ item.campus_location }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted"><i class="bi bi-calendar-event-fill text-success me-2"></i>Date Reported</span>
+                                <strong class="text-dark font-mono">{{ item.event_date }}</strong>
+                            </div>
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-auto">
+                            <div>
+                                {% if item.current_state == 'IN_CUSTODY' %}
+                                    <span class="badge-status-custody">
+                                        <i class="bi bi-lock-fill"></i> In Custody
+                                    </span>
+                                {% elif item.current_state == 'REPORTED' %}
+                                    {% if item.report_type == 'LOST' %}
+                                        <span class="badge-status-missing">
+                                            <i class="bi bi-search"></i> Reported Missing
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-status-reported">
+                                            <i class="bi bi-clock-fill"></i> Awaiting Intake
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            {% if item.report_type == 'FOUND' %}
+                                {% if session.get('role') == 'STUDENT' %}
+                                    <button type="button" class="btn btn-sm btn-outline-theme" data-bs-toggle="modal" data-bs-target="#claimModal{{ item.item_id }}">
+                                        Claim Item
+                                    </button>
+                                {% elif not session.get('user_id') %}
+                                    <button type="button" class="btn btn-sm btn-outline-theme" data-bs-toggle="modal" data-bs-target="#authPromptModal{{ item.item_id }}">
+                                        Claim Item
+                                    </button>
+                                {% endif %}
+                            {% elif item.report_type == 'LOST' %}
+                                {% if session.get('user_id') == item.reporter_id or session.get('role') in ['CUSTODIAN', 'ADMIN'] %}
+                                    <form action="/item/resolve/{{ item.item_id }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Confirm that this lost property has been recovered?');">
+                                            <i class="bi bi-check2-circle me-1"></i> Mark Recovered
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lightbox Modal -->
+            {% if item.photo_url %}
+            <div class="modal fade" id="imageLightboxModal{{ item.item_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content border-0">
+                        <div class="modal-header bg-dark text-white py-2">
+                            <h6 class="modal-title small fw-semibold font-mono">
+                                LF-{{ '%04d' % item.item_id }} &bull; {{ item.general_description }}
+                            </h6>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-0 text-center bg-black">
+                            <img src="{{ item.photo_url }}" alt="{{ item.general_description }}" class="img-fluid" style="max-height: 80vh; object-fit: contain;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Claim Modal -->
+            {% if session.get('user_id') %}
+            <div class="modal fade" id="claimModal{{ item.item_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0">
+                        <form action="/claim/{{ item.item_id }}" method="POST">
+                            <div class="modal-header bg-light py-3">
+                                <h6 class="modal-title fw-bold">Claim Verification &bull; {{ item.general_description }}</h6>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-4">
+                                <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                                <div class="alert alert-light border small text-muted mb-3">
+                                    <i class="bi bi-shield-lock-fill text-success me-1"></i> 
+                                    Describe details known only to the true owner (stickers, wallpapers, markings, or specific contents).
+                                </div>
+                                <label class="form-label small fw-bold text-dark">Proof of Ownership</label>
+                                <textarea name="proof_answers" class="form-control" rows="3" placeholder="Provide details to verify your ownership..." required></textarea>
+                            </div>
+                            <div class="modal-footer bg-light py-2">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-theme btn-sm">Submit Claim</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="modal fade" id="authPromptModal{{ item.item_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 text-center p-3">
+                        <div class="modal-body py-4">
+                            <div class="mb-3">
+                                <span class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle text-success" style="width: 64px; height: 64px;">
+                                    <i class="bi bi-shield-lock-fill fs-2"></i>
+                                </span>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-2">Student Account Required</h5>
+                            <p class="text-secondary small mb-4 px-3">
+                                To protect belongings and prevent unauthorized claims, please sign in or register before submitting a claim for <strong>{{ item.general_description }}</strong>.
+                            </p>
+                            <div class="d-grid gap-2">
+                                <a href="/register" class="btn btn-theme py-2 fw-semibold">Register Student Account</a>
+                                <a href="/login" class="btn btn-outline-secondary py-2 fw-semibold">Sign In</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="col-12">
+                <div class="text-center py-5 bg-white rounded-3 border">
+                    <i class="bi bi-inbox text-muted" style="font-size: 2.5rem;"></i>
+                    <h6 class="fw-bold mt-2 text-secondary">No Active Items</h6>
+                    <p class="text-muted small mb-0">All reported items have been resolved or collected.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tab 2: Returned & Resolved Items -->
+    <div class="tab-pane fade" id="fulfilled-pane" role="tabpanel">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for item in fulfilled_items %}
+            <div class="col">
+                <div class="card h-100 bg-white opacity-75">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 font-mono" style="font-size: 0.7rem;">
+                                RESOLVED RECORD
+                            </span>
+                            <span class="text-muted small fw-medium">
+                                <i class="bi bi-tag-fill me-1 text-secondary opacity-50"></i>{{ item.category }}
+                            </span>
+                        </div>
+
+                        <h5 class="fw-bold text-dark mb-1 text-decoration-line-through">{{ item.general_description }}</h5>
+                        <div class="font-mono text-muted mb-3" style="font-size: 0.76rem;">
+                            Ref: LF-{{ '%04d' % item.item_id }}
+                        </div>
+
+                        <div class="meta-box mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Original Location</span>
+                                <strong class="text-dark">{{ item.campus_location }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Date Logged</span>
+                                <strong class="text-dark font-mono">{{ item.event_date }}</strong>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-auto">
+                            <span class="badge-status-returned">
+                                <i class="bi bi-check-circle-fill text-success"></i> Handover Completed
+                            </span>
+                            <span class="text-muted small font-mono">CLOSED</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="text-center py-5 bg-white rounded-3 border">
+                    <i class="bi bi-archive text-muted" style="font-size: 2.5rem;"></i>
+                    <h6 class="fw-bold mt-2 text-secondary">No Records Yet</h6>
+                    <p class="text-muted small mb-0">Completed handovers and resolved reports will appear here.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- 6. FAQS (GUEST ONLY) -->
+{% if not session.get('user_id') %}
+<section id="faq" class="mt-5 pt-4">
+    <div class="text-center mb-4">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 font-mono small">
+            HELP &amp; INFORMATION
+        </span>
+        <h4 class="fw-bold mt-2 mb-1">Frequently Asked Questions</h4>
+        <p class="text-muted small mx-auto" style="max-width: 580px;">
+            Clear answers about reporting, claiming, and collecting belongings on campus.
+        </p>
+    </div>
+
+    <div class="accordion mx-auto" id="campusFaqAccordion" style="max-width: 900px;">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                    <i class="bi bi-question-circle me-2 text-success"></i> How do I claim an item found on campus?
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#campusFaqAccordion">
+                <div class="accordion-body">
+                    Find your item in the directory under <strong>Active Items &amp; Requests</strong> and click <strong>Claim Item</strong>. Enter details only the real owner would know (such as unique marks, stickers, serial numbers, wallpapers, or specific contents).
                 </div>
             </div>
         </div>
 
-        <!-- Hidden Verification Modal (FR-CLM-03, FR-CLM-04, NFR-SEC-02) -->
-        <div class="modal fade" id="claimModal{{ item.item_id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <form action="/claim/{{ item.item_id }}" method="POST" class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Claim Item #{{ item.item_id }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info small">
-                            <strong>Policy Disclaimer:</strong> Specific identifiers are concealed to prevent fraudulent claims. State distinguishing features (e.g. lock-screen wallpaper, engraving, serial fragment, or bag contents).
-                        </div>
-                        <label class="form-label fw-bold">Private Proof-of-Ownership Clues</label>
-                        <textarea name="proof_answers" class="form-control" rows="3" required placeholder="e.g. Serial ending in 4821, blue sticker on bottom right corner"></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Submit Private Claim</button>
-                    </div>
-                </form>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                    <i class="bi bi-shield-check me-2 text-success"></i> Why are serial numbers and detailed markings hidden on the public catalog?
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#campusFaqAccordion">
+                <div class="accordion-body">
+                    To protect student belongings and avoid false claims, sensitive markings are kept confidential. Only authorized campus custodians can view full descriptions to verify submitted claims.
+                </div>
             </div>
         </div>
-    {% endfor %}
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                    <i class="bi bi-person-vcard me-2 text-success"></i> What do I need to bring when collecting my item?
+                </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#campusFaqAccordion">
+                <div class="accordion-body">
+                    Bring your physical <strong>Student ID Card</strong> (or Faculty ID) to the Custody Office. The duty officer will verify your identity before handing over the property.
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">
+                    <i class="bi bi-cash-coin me-2 text-success"></i> Is there any fee or charge for reclaiming lost items?
+                </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#campusFaqAccordion">
+                <div class="accordion-body">
+                    No. The Campus Lost and Found service is completely free for all students, staff, and visitors.
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFive">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive">
+                    <i class="bi bi-clock-history me-2 text-success"></i> Where is the physical Custody Office located?
+                </button>
+            </h2>
+            <div id="collapseFive" class="accordion-collapse collapse" data-bs-parent="#campusFaqAccordion">
+                <div class="accordion-body">
+                    The central office is located on the ground floor of the Computer Systems Engineering (CSE) Department, DCSE Board Room. Operating hours are Monday through Friday, 08:30 AM to 04:00 PM.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- 7. CONTACT FORM (GUEST ONLY) -->
+{% if not session.get('user_id') %}
+<section id="contact-us" class="mt-5 mb-4">
+    <div class="card p-4 p-md-5">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 mb-2 font-mono small">
+                    <i class="bi bi-geo-alt-fill me-1"></i> CAMPUS CUSTODY OFFICE
+                </span>
+                <h4 class="fw-bold mb-2">Campus Security &amp; Custody Office</h4>
+                <p class="text-muted small mb-4">
+                    Have an urgent question about a lost belonging or need help from duty officers? Send a message or visit our office.
+                </p>
+
+                <div class="d-flex flex-column gap-3 small text-muted">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-building text-success mt-1"></i>
+                        <div><strong>Location:</strong> Department of Computer Systems Engineering (CSE), DCSE Board Room</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-clock text-success mt-1"></i>
+                        <div><strong>Office Hours:</strong> Monday – Friday &bull; 08:30 AM – 04:00 PM</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-envelope text-success mt-1"></i>
+                        <div><strong>Email:</strong> lostandfound@uetpeshawar.edu.pk</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-telephone text-success mt-1"></i>
+                        <div><strong>Office Phone:</strong> Ext. 123</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="p-4 bg-light rounded-3 border">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-send-fill text-success me-2"></i>Send an Inquiry to the Custody Office</h6>
+                    <form action="/contact" method="POST">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Your Full Name</label>
+                                <input type="text" name="sender_name" class="form-control" placeholder="e.g., Hamza Mir" value="{{ session.get('name') or '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Email Address</label>
+                                <input type="email" name="sender_email" class="form-control" placeholder="name@domain.com" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Subject</label>
+                            <input type="text" name="subject" class="form-control" placeholder="e.g., Question about laptop bag found near Lab 02" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Message</label>
+                            <textarea name="message" class="form-control" rows="3" placeholder="Provide any details, item references, or questions..." required></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_urgent" id="urgentCheck">
+                                <label class="form-check-label small text-danger fw-semibold" for="urgentCheck">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Mark as Urgent / High Priority
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-theme btn-sm px-4 py-2">
+                                <i class="bi bi-send me-1"></i> Submit Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Modal: Anonymous Report Auth Prompt -->
+{% if not session.get('user_id') %}
+<div class="modal fade" id="reportAuthPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 text-center p-3">
+            <div class="modal-body py-4">
+                <div class="mb-3">
+                    <span class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle text-success" style="width: 64px; height: 64px;">
+                        <i class="bi bi-person-badge fs-2"></i>
+                    </span>
+                </div>
+                <h5 class="fw-bold mb-2">Student Account Required</h5>
+                <p class="text-secondary small mb-4 px-3">
+                    To maintain record security and verify ownership, please sign in or register before submitting a report.
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="/register" class="btn btn-theme py-2 fw-semibold">Register Student Account</a>
+                    <a href="/login" class="btn btn-outline-secondary py-2 fw-semibold">Sign In</a>
+                </div>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0">
+                <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none" data-bs-dismiss="modal">
+                    Continue Browsing
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
+{% endif %}
+
 {% endblock %}

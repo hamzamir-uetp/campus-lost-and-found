@@ -1,104 +1,126 @@
 import sqlite3
 
-DATABASE_NAME = "campus_lost_found.db"
+DATABASE_NAME = "campus.db"
 
 def get_db_connection():
-    """Connects to the database and allows accessing columns by name."""
     conn = sqlite3.connect(DATABASE_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    """Initializes tables matching the SRS conceptual data model."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Users table (Student, Custodian, Admin)
+    # Users Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
-        role TEXT CHECK(role IN ('STUDENT', 'CUSTODIAN', 'ADMIN')) NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('STUDENT', 'CUSTODIAN', 'ADMIN')),
         password_hash TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
-    # 2. Items table
+    # Items Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS items (
         item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        reporter_id INTEGER REFERENCES users(user_id),
-        report_type TEXT CHECK(report_type IN ('LOST', 'FOUND')) NOT NULL,
+        reporter_id INTEGER NOT NULL,
+        report_type TEXT NOT NULL CHECK(report_type IN ('LOST', 'FOUND')),
         category TEXT NOT NULL,
         general_description TEXT NOT NULL,
         campus_location TEXT NOT NULL,
         event_date DATE NOT NULL,
         photo_url TEXT,
-        current_state TEXT CHECK(current_state IN ('REPORTED', 'IN_CUSTODY', 'RETURNED', 'UNCLAIMED_DISPOSED', 'ARCHIVED')) DEFAULT 'REPORTED',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        current_state TEXT NOT NULL CHECK(current_state IN ('REPORTED', 'IN_CUSTODY', 'CLAIMED', 'RETURNED', 'UNCLAIMED_DISPOSED', 'ARCHIVED')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (reporter_id) REFERENCES users (user_id)
     );
     """)
 
-    # 3. Claims table
+    # Claims Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS claims (
         claim_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id INTEGER REFERENCES items(item_id),
-        claimant_id INTEGER REFERENCES users(user_id),
+        item_id INTEGER NOT NULL,
+        claimant_id INTEGER NOT NULL,
         proof_answers TEXT NOT NULL,
-        custodian_prompt TEXT,
-        claimant_reply TEXT,
-        status TEXT CHECK(status IN ('PENDING_REVIEW', 'NEEDS_MORE_INFO', 'APPROVED', 'REJECTED', 'HANDOVER_COMPLETED')) DEFAULT 'PENDING_REVIEW',
+        status TEXT NOT NULL DEFAULT 'PENDING_REVIEW' CHECK(status IN ('PENDING_REVIEW', 'APPROVED', 'REJECTED', 'HANDOVER_COMPLETED')),
         decision_reason TEXT,
-        adjudicated_by INTEGER REFERENCES users(user_id),
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        adjudicated_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (item_id) REFERENCES items (item_id),
+        FOREIGN KEY (claimant_id) REFERENCES users (user_id),
+        FOREIGN KEY (adjudicated_by) REFERENCES users (user_id)
     );
     """)
 
-    # 4. Custodial Logs table
+    # Custodial Action Logs
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS custodial_logs (
-        custody_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id INTEGER REFERENCES items(item_id),
-        custodian_id INTEGER REFERENCES users(user_id),
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        custodian_id INTEGER NOT NULL,
         storage_location TEXT NOT NULL,
         action_type TEXT NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        action_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (item_id) REFERENCES items (item_id),
+        FOREIGN KEY (custodian_id) REFERENCES users (user_id)
     );
     """)
 
-    # 5. Handover Records table
+    # Handover Records
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS handover_records (
         handover_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id INTEGER UNIQUE REFERENCES items(item_id),
-        claim_id INTEGER UNIQUE REFERENCES claims(claim_id),
-        claimant_id INTEGER REFERENCES users(user_id),
-        custodian_id INTEGER REFERENCES users(user_id),
+        item_id INTEGER NOT NULL,
+        claim_id INTEGER NOT NULL,
+        claimant_id INTEGER NOT NULL,
+        custodian_id INTEGER NOT NULL,
         campus_id_verified INTEGER NOT NULL DEFAULT 0,
-        handover_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        handover_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (item_id) REFERENCES items (item_id),
+        FOREIGN KEY (claim_id) REFERENCES claims (claim_id),
+        FOREIGN KEY (claimant_id) REFERENCES users (user_id),
+        FOREIGN KEY (custodian_id) REFERENCES users (user_id)
     );
     """)
 
-    # 6. Immutable Audit Log table
+    # Audit Logs
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS audit_logs (
         audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        actor_user_id INTEGER REFERENCES users(user_id),
+        actor_user_id INTEGER,
         action_type TEXT NOT NULL,
-        target_record_id INTEGER NOT NULL,
+        target_record_id INTEGER,
         old_state TEXT,
         new_state TEXT,
         client_ip TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (actor_user_id) REFERENCES users (user_id)
+    );
+    """)
+
+    # Inquiries & Contact Messages
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS inquiries (
+        inquiry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_name TEXT NOT NULL,
+        sender_email TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        is_urgent INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'OPEN',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
     conn.commit()
     conn.close()
-    print("Database tables created successfully!")
 
 if __name__ == "__main__":
     init_db()
+    print("Database tables initialized successfully.")

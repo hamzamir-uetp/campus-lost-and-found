@@ -1,71 +1,146 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3 class="mb-4 fw-bold">Campus Administration & Audit</h3>
 
-<!-- Summary Metric Cards (FR-ADM-06) -->
+<!-- Header Strip -->
+<div class="p-4 mb-4 rounded-3 bg-white border" style="border-left: 5px solid #0f172a !important;">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <span class="badge bg-dark font-monospace mb-1">ADMINISTRATIVE COMPLIANCE</span>
+            <h4 class="fw-bold text-dark mb-1">System Audit &amp; Activity Trail</h4>
+            <p class="text-muted small mb-0">Immutable records of custody intakes, ownership claims, handovers, and state changes.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/admin/export-audit" class="btn btn-outline-dark btn-sm fw-semibold d-inline-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-arrow-down-fill text-success fs-6"></i> Export Audit Log (CSV)
+            </a>
+            <a href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Exit Console
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Metrics Overview -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card p-3 bg-white text-center shadow-sm">
-            <h6 class="text-muted small text-uppercase">Total Reported</h6>
-            <h3 class="fw-bold">{{ metrics.total_reported }}</h3>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small fw-semibold">Total Reports</span>
+                <i class="bi bi-folder2-open text-primary fs-5"></i>
+            </div>
+            <h3 class="fw-bold text-dark mb-0">{{ metrics.total_reported }}</h3>
+            <small class="text-muted" style="font-size: 0.75rem;">Lifetime reports logged</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card p-3 bg-white text-center shadow-sm">
-            <h6 class="text-muted small text-uppercase">Held In Custody</h6>
-            <h3 class="fw-bold text-info">{{ metrics.in_custody }}</h3>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small fw-semibold">In Custody</span>
+                <i class="bi bi-lock-fill text-info fs-5"></i>
+            </div>
+            <h3 class="fw-bold text-dark mb-0">{{ metrics.in_custody }}</h3>
+            <small class="text-muted" style="font-size: 0.75rem;">Physical belongings secured</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card p-3 bg-white text-center shadow-sm">
-            <h6 class="text-muted small text-uppercase">Pending Claims</h6>
-            <h3 class="fw-bold text-warning">{{ metrics.pending_claims }}</h3>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small fw-semibold">Pending Claims</span>
+                <i class="bi bi-hourglass-split text-warning fs-5"></i>
+            </div>
+            <h3 class="fw-bold text-dark mb-0">{{ metrics.pending_claims }}</h3>
+            <small class="text-muted" style="font-size: 0.75rem;">Awaiting custodian evaluation</small>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card p-3 bg-white text-center shadow-sm">
-            <h6 class="text-muted small text-uppercase">Returned Items</h6>
-            <h3 class="fw-bold text-success">{{ metrics.returned }}</h3>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small fw-semibold">Returned to Owners</span>
+                <i class="bi bi-check2-circle text-success fs-5"></i>
+            </div>
+            <h3 class="fw-bold text-dark mb-0">{{ metrics.returned }}</h3>
+            <small class="text-muted" style="font-size: 0.75rem;">Verified physical handovers</small>
         </div>
     </div>
 </div>
 
-<!-- Immutable Audit Trail Table (FR-ADM-04, FR-ADM-05) -->
-<div class="card p-3 bg-white shadow-sm">
-    <h5 class="fw-bold mb-3">Immutable Audit Log</h5>
-    <div class="table-responsive">
-        <table class="table table-sm table-striped align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Log ID</th>
-                    <th>Actor</th>
-                    <th>Action</th>
-                    <th>Record ID</th>
-                    <th>Old State</th>
-                    <th>New State</th>
-                    <th>Client IP</th>
-                    <th>Timestamp</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in audit_trail %}
-                <tr>
-                    <td>#{{ log.audit_id }}</td>
-                    <td>{{ log.actor_name or 'System' }}</td>
-                    <td><span class="badge bg-dark">{{ log.action_type }}</span></td>
-                    <td>{{ log.target_record_id }}</td>
-                    <td>{{ log.old_state or '-' }}</td>
-                    <td><strong>{{ log.new_state }}</strong></td>
-                    <td><code>{{ log.client_ip }}</code></td>
-                    <td class="small text-muted">{{ log.timestamp }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" class="text-center text-muted py-3">No audit records logged yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- Audit Log Table & Filter Strip -->
+<div class="card bg-white shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-shield-check text-primary me-2"></i>Audit Trail Log</h6>
+        
+        <!-- Action Type Filter -->
+        <form method="GET" action="/admin" class="d-flex align-items-center gap-2">
+            <select name="action" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Action Types</option>
+                <option value="CREATE_REPORT" {% if action_filter == 'CREATE_REPORT' %}selected{% endif %}>CREATE_REPORT</option>
+                <option value="CUSTODY_INTAKE" {% if action_filter == 'CUSTODY_INTAKE' %}selected{% endif %}>CUSTODY_INTAKE</option>
+                <option value="SUBMIT_CLAIM" {% if action_filter == 'SUBMIT_CLAIM' %}selected{% endif %}>SUBMIT_CLAIM</option>
+                <option value="ADJUDICATE_CLAIM" {% if action_filter == 'ADJUDICATE_CLAIM' %}selected{% endif %}>ADJUDICATE_CLAIM</option>
+                <option value="EXECUTE_HANDOVER" {% if action_filter == 'EXECUTE_HANDOVER' %}selected{% endif %}>EXECUTE_HANDOVER</option>
+                <option value="RESOLVE_LOST_REPORT" {% if action_filter == 'RESOLVE_LOST_REPORT' %}selected{% endif %}>RESOLVE_LOST_REPORT</option>
+            </select>
+            {% if action_filter %}
+                <a href="/admin" class="btn btn-sm btn-outline-secondary text-nowrap">Reset</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 font-monospace" style="font-size: 0.82rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Audit ID</th>
+                        <th>Timestamp</th>
+                        <th>Actor</th>
+                        <th>Action Performed</th>
+                        <th>Target ID</th>
+                        <th>State Transition</th>
+                        <th>Client IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in audit_trail %}
+                    <tr>
+                        <td class="ps-4 text-muted">AUD-{{ '%05d' % log.audit_id }}</td>
+                        <td class="text-nowrap">{{ log.timestamp }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ log.actor_name or 'System' }}</div>
+                            <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.68rem;">{{ log.actor_role or 'GUEST' }}</span>
+                        </td>
+                        <td>
+                            {% if 'HANDOVER' in log.action_type %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">{{ log.action_type }}</span>
+                            {% elif 'INTAKE' in log.action_type %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ log.action_type }}</span>
+                            {% elif 'CLAIM' in log.action_type %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">{{ log.action_type }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ log.action_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>#{{ log.target_record_id }}</td>
+                        <td>
+                            <span class="text-secondary">{{ log.old_state or 'NULL' }}</span>
+                            <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                            <strong class="text-dark">{{ log.new_state or 'NULL' }}</strong>
+                        </td>
+                        <td class="text-muted">{{ log.client_ip or '127.0.0.1' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 font-sans-serif">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                            <h6 class="fw-bold mt-2 text-secondary">No Log Entries Found</h6>
+                            <p class="text-muted small mb-0">No events matched the selected action filter.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
 {% endblock %}

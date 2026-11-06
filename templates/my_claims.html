@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Header Strip -->
+<div class="p-4 mb-4 rounded-3 bg-white border" style="border-left: 5px solid #0f172a !important;">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h4 class="fw-bold text-dark mb-1">My Property Claims &amp; Reports</h4>
+            <p class="text-muted small mb-0">
+                Monitor ownership claim evaluations, review automated matches for your lost reports, and follow custody handover instructions.
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="/" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Directory
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 1. Automated Match Suggestions (if any active matches detected) -->
+{% if matches_by_report %}
+<div class="card bg-white border-primary mb-4 shadow-sm">
+    <div class="card-header bg-primary bg-opacity-10 py-3 border-bottom border-primary border-opacity-25 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-stars text-primary fs-5"></i>
+            <h6 class="fw-bold text-dark mb-0">Automated Match Suggestions</h6>
+        </div>
+        <span class="badge bg-primary">Found Property Detected</span>
+    </div>
+    <div class="card-body p-4">
+        <p class="text-muted small mb-3">
+            Our custody system detected physical items turned in that match the description and category of your active lost reports. Review and submit a claim if one is yours:
+        </p>
+
+        {% for report_id, matches in matches_by_report.items() %}
+            <div class="p-3 bg-light rounded-3 border mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-dark small">
+                        Matches for Your Lost Report: LF-{{ '%04d' % report_id }}
+                    </span>
+                    <span class="badge bg-secondary-subtle text-secondary small font-monospace">
+                        {{ matches|length }} candidate(s)
+                    </span>
+                </div>
+                
+                <div class="row g-2">
+                    {% for m in matches %}
+                    <div class="col-md-6">
+                        <div class="card bg-white p-3 h-100 border">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="fw-bold text-dark mb-0">{{ m.description }}</h6>
+                                <span class="badge bg-info-subtle text-info border font-monospace small">LF-{{ '%04d' % m.item_id }}</span>
+                            </div>
+                            <div class="small text-muted mb-2">
+                                <div><i class="bi bi-geo-alt me-1"></i> {{ m.location }}</div>
+                                <div><i class="bi bi-calendar-event me-1"></i> {{ m.date }}</div>
+                                <div class="mt-1">
+                                    <span class="text-secondary fw-semibold">Matched Keywords:</span> 
+                                    {% for kw in m.matched_words %}
+                                        <span class="badge bg-light text-dark border">{{ kw }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
+                                <span class="badge bg-success-subtle text-success">Status: {{ m.state }}</span>
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#claimModal{{ m.item_id }}">
+                                    Claim This Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal for Claiming Match -->
+                    <div class="modal fade" id="claimModal{{ m.item_id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <form action="/claim/{{ m.item_id }}" method="POST">
+                                    <div class="modal-header bg-light py-3">
+                                        <h6 class="modal-title fw-bold">Claim Verification &bull; {{ m.description }}</h6>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                        <input type="hidden" name="item_id" value="{{ m.item_id }}">
+                                        <div class="alert alert-light border small text-muted mb-3">
+                                            <i class="bi bi-shield-lock-fill text-primary me-1"></i> 
+                                            Provide hidden details (stickers, wallpapers, serials, internal contents) so custodians can verify this match is yours.
+                                        </div>
+                                        <label class="form-label small fw-bold text-dark">Private Ownership Proof</label>
+                                        <textarea name="proof_answers" class="form-control" rows="3" placeholder="Describe private markings..." required></textarea>
+                                    </div>
+                                    <div class="modal-footer bg-light py-2">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary btn-sm">Submit Claim</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 2. Active Claims Tracker Table -->
+<div class="card bg-white shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-journal-check text-primary me-2"></i>Ownership Claims Status</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Claim ID</th>
+                        <th>Target Property</th>
+                        <th>Submitted Proof Clues</th>
+                        <th>Claim Status</th>
+                        <th>Next Step / Instructions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for claim in claims %}
+                    <tr>
+                        <td class="ps-4 font-monospace small">#CLM-{{ '%04d' % claim.claim_id }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ claim.general_description }}</div>
+                            <div class="text-muted small font-monospace">Ref: LF-{{ '%04d' % claim.item_id }} &bull; {{ claim.category }}</div>
+                        </td>
+                        <td style="max-width: 280px;">
+                            <span class="small text-secondary font-monospace d-inline-block text-truncate" style="max-width: 260px;" title="{{ claim.proof_answers }}">
+                                {{ claim.proof_answers }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if claim.claim_status == 'APPROVED' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Approved
+                                </span>
+                            {% elif claim.claim_status == 'PENDING_REVIEW' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                    <i class="bi bi-clock-history me-1"></i> Under Review
+                                </span>
+                            {% elif claim.claim_status == 'REJECTED' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    <i class="bi bi-x-circle-fill me-1"></i> Declined
+                                </span>
+                            {% elif claim.claim_status == 'HANDOVER_COMPLETED' %}
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1">
+                                    <i class="bi bi-box2-heart-fill me-1"></i> Handover Completed
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary px-2 py-1">{{ claim.claim_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if claim.claim_status == 'APPROVED' and claim.item_status != 'RETURNED' %}
+                                <span class="small text-success fw-semibold">
+                                    <i class="bi bi-box-seam me-1"></i> Visit Custodian Desk with physical Campus ID to collect.
+                                </span>
+                            {% elif claim.item_status == 'RETURNED' or claim.claim_status == 'HANDOVER_COMPLETED' %}
+                                <span class="small text-muted">
+                                    <i class="bi bi-check2-all text-success me-1"></i> Property collected.
+                                </span>
+                            {% elif claim.claim_status == 'PENDING_REVIEW' %}
+                                <span class="small text-muted">
+                                    Awaiting custodian evaluation.
+                                </span>
+                            {% else %}
+                                <span class="small text-muted">Proof verification failed.</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2.2rem;"></i>
+                            <h6 class="fw-bold mt-2 text-secondary">No Active Claims</h6>
+                            <p class="text-muted small mb-0">You have not submitted ownership claims for any items yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 3. My Active Lost Reports Section -->
+{% if lost_reports %}
+<div class="card bg-white shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-search text-danger me-2"></i>My Open Lost Property Notices</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th class="ps-4">Tracking ID</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Location</th>
+                        <th>Date Reported</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody class="small">
+                    {% for r in lost_reports %}
+                    <tr>
+                        <td class="ps-4 font-monospace">LF-{{ '%04d' % r.item_id }}</td>
+                        <td class="fw-semibold text-dark">{{ r.general_description }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ r.category }}</span></td>
+                        <td>{{ r.campus_location }}</td>
+                        <td class="text-muted">{{ r.event_date }}</td>
+                        <td>
+                            <form action="/item/resolve/{{ r.item_id }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success px-2 py-1" onclick="return confirm('Confirm this lost property has been recovered?');">
+                                    <i class="bi bi-check2"></i> Mark Recovered
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

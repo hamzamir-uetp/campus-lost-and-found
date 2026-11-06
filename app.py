@@ -1,5 +1,9 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import re
+import csv
+import io
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 from database import get_db_connection
@@ -12,6 +16,8 @@ UPLOAD_FOLDER = os.path.join("static", "uploads")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+STOP_WORDS = {"the", "a", "an", "with", "in", "on", "at", "to", "for", "of", "and", "or", "my"}
 
 def allowed_file(filename):
     """Validates allowed image file extensions (FR-ITEM-04)."""
@@ -27,14 +33,49 @@ def log_audit(actor_id, action, target_id, old_state, new_state):
     conn.commit()
     conn.close()
 
-# --- 1. Public Item Catalog (FR-AUTH-01, FR-ITEM-08, FR-ITEM-09) ---
+def find_potential_matches(item_id, report_type, category, description):
+    """Auto-matching engine: finds opposing items in the same category with overlapping keywords."""
+    words = re.findall(r"\b[a-zA-Z]{3,}\b", description.lower())
+    keywords = [w for w in words if w not in STOP_WORDS]
+    if not keywords:
+        return []
+
+    target_type = "FOUND" if report_type == "LOST" else "LOST"
+    conn = get_db_connection()
+    
+    candidates = conn.execute("""
+        SELECT item_id, general_description, campus_location, event_date, current_state
+        FROM items
+        WHERE report_type = ? 
+          AND category = ? 
+          AND current_state NOT IN ('RETURNED', 'UNCLAIMED_DISPOSED', 'ARCHIVED')
+          AND item_id != ?
+    """, (target_type, category, item_id)).fetchall()
+    conn.close()
+
+    matches = []
+    for cand in candidates:
+        cand_words = set(re.findall(r"\b[a-zA-Z]{3,}\b", cand["general_description"].lower()))
+        overlap = [kw for kw in keywords if kw in cand_words]
+        if overlap:
+            matches.append({
+                "item_id": cand["item_id"],
+                "description": cand["general_description"],
+                "location": cand["campus_location"],
+                "date": cand["event_date"],
+                "state": cand["current_state"],
+                "matched_words": overlap
+            })
+    return matches
+
+# --- 1. Public Item Catalog ---
 @app.route("/")
 def index():
     query = request.args.get("q", "").strip()
     category = request.args.get("category", "").strip()
     report_type = request.args.get("type", "").strip()
 
-    sql = "SELECT * FROM items WHERE current_state NOT IN ('RETURNED', 'UNCLAIMED_DISPOSED', 'ARCHIVED')"
+    sql = "SELECT * FROM items WHERE 1=1"
     params = []
 
     if query:
@@ -50,11 +91,22 @@ def index():
     sql += " ORDER BY event_date DESC"
 
     conn = get_db_connection()
-    items = conn.execute(sql, params).fetchall()
+    all_items = conn.execute(sql, params).fetchall()
     conn.close()
-    return render_template("index.html", items=items, query=query, category=category, report_type=report_type)
 
-# --- 2. Authentication (FR-AUTH-02, FR-AUTH-03) ---
+    active_items = [i for i in all_items if i["current_state"] in ("REPORTED", "IN_CUSTODY")]
+    fulfilled_items = [i for i in all_items if i["current_state"] in ("RETURNED", "UNCLAIMED_DISPOSED", "ARCHIVED")]
+
+    return render_template(
+        "index.html", 
+        active_items=active_items, 
+        fulfilled_items=fulfilled_items,
+        query=query, 
+        category=category, 
+        report_type=report_type
+    )
+
+# --- 2. Authentication ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -102,7 +154,7 @@ def logout():
     flash("You have been logged out.", "info")
     return redirect(url_for("index"))
 
-# --- 3. Item Reporting (FR-ITEM-01, FR-ITEM-02, FR-ITEM-04) ---
+# --- 3. Item Reporting ---
 @app.route("/report", methods=["GET", "POST"])
 def report_item():
     if "user_id" not in session:
@@ -134,12 +186,48 @@ def report_item():
         conn.close()
 
         log_audit(session["user_id"], "CREATE_REPORT", new_item_id, None, "REPORTED")
-        flash("Item report filed successfully!", "success")
+
+        potential_matches = find_potential_matches(new_item_id, report_type, category, description)
+        if potential_matches:
+            flash(f"Report filed! We found {len(potential_matches)} potential match(es) in the inventory.", "info")
+            if session.get("role") == "STUDENT":
+                return redirect(url_for("my_claims"))
+        else:
+            flash("Item report filed successfully!", "success")
+
         return redirect(url_for("index"))
 
     return render_template("report.html")
 
-# --- 4. Ownership Claim Submission (FR-CLM-01, FR-CLM-03, FR-CLM-04) ---
+# --- 4. Resolve Lost Notice ---
+@app.route("/item/resolve/<int:item_id>", methods=["POST"])
+def resolve_lost_item(item_id):
+    if "user_id" not in session:
+        flash("Please log in to manage your reports.", "warning")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    item = conn.execute("SELECT * FROM items WHERE item_id = ?", (item_id,)).fetchone()
+
+    if not item:
+        conn.close()
+        flash("Item not found.", "danger")
+        return redirect(url_for("index"))
+
+    if item["reporter_id"] != session["user_id"] and session.get("role") not in ("CUSTODIAN", "ADMIN"):
+        conn.close()
+        flash("Unauthorized to resolve this report.", "danger")
+        return redirect(url_for("index"))
+
+    conn.execute("UPDATE items SET current_state = 'RETURNED' WHERE item_id = ?", (item_id,))
+    conn.commit()
+    conn.close()
+
+    log_audit(session["user_id"], "RESOLVE_LOST_REPORT", item_id, item["current_state"], "RETURNED")
+    flash("Report marked as recovered and archived!", "success")
+    return redirect(url_for("index"))
+
+# --- 5. Claims & Student Dashboard ---
 @app.route("/claim/<int:item_id>", methods=["POST"])
 def submit_claim(item_id):
     if "user_id" not in session:
@@ -159,9 +247,54 @@ def submit_claim(item_id):
 
     log_audit(session["user_id"], "SUBMIT_CLAIM", claim_id, None, "PENDING_REVIEW")
     flash("Claim submitted. A custodian will review your proof.", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("my_claims"))
 
-# --- 5. Custodian Management & Verification (FR-CUS-01, FR-CLM-05, FR-HND-01) ---
+@app.route("/my-claims")
+def my_claims():
+    if "user_id" not in session:
+        flash("Please log in to view your claims.", "warning")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    claims = conn.execute("""
+        SELECT 
+            c.claim_id,
+            c.proof_answers,
+            c.status AS claim_status,
+            i.item_id,
+            i.general_description,
+            i.category,
+            i.campus_location,
+            i.current_state AS item_status
+        FROM claims c
+        JOIN items i ON c.item_id = i.item_id
+        WHERE c.claimant_id = ?
+        ORDER BY c.claim_id DESC
+    """, (session["user_id"],)).fetchall()
+
+    lost_reports = conn.execute("""
+        SELECT item_id, general_description, category, campus_location, event_date, current_state
+        FROM items
+        WHERE reporter_id = ? AND report_type = 'LOST' AND current_state = 'REPORTED'
+        ORDER BY event_date DESC
+    """, (session["user_id"],)).fetchall()
+
+    matches_by_report = {}
+    for r in lost_reports:
+        matches = find_potential_matches(r["item_id"], "LOST", r["category"], r["general_description"])
+        if matches:
+            matches_by_report[r["item_id"]] = matches
+
+    conn.close()
+
+    return render_template(
+        "my_claims.html", 
+        claims=claims, 
+        lost_reports=lost_reports, 
+        matches_by_report=matches_by_report
+    )
+
+# --- 6. Custodian Desk ---
 @app.route("/custody")
 def custody_dashboard():
     if session.get("role") not in ("CUSTODIAN", "ADMIN"):
@@ -178,9 +311,10 @@ def custody_dashboard():
         JOIN users u ON c.claimant_id = u.user_id
         WHERE c.status NOT IN ('HANDOVER_COMPLETED', 'REJECTED')
     """).fetchall()
+    inquiries = conn.execute("SELECT * FROM inquiries WHERE status = 'OPEN' ORDER BY is_urgent DESC, created_at DESC").fetchall()
     conn.close()
 
-    return render_template("custody.html", intake_items=intake_items, held_items=held_items, claims=claims)
+    return render_template("custody.html", intake_items=intake_items, held_items=held_items, claims=claims, inquiries=inquiries)
 
 @app.route("/custody/intake", methods=["POST"])
 def record_intake():
@@ -241,24 +375,77 @@ def complete_handover():
         return redirect(url_for("custody_dashboard"))
 
     conn = get_db_connection()
-    conn.execute("INSERT INTO handover_records (item_id, claim_id, claimant_id, custodian_id, campus_id_verified) VALUES (?, ?, ?, ?, ?)",
-                 (item_id, claim_id, claimant_id, session["user_id"], id_verified))
+    conn.execute(
+        "INSERT INTO handover_records (item_id, claim_id, claimant_id, custodian_id, campus_id_verified) VALUES (?, ?, ?, ?, ?)",
+        (item_id, claim_id, claimant_id, session["user_id"], id_verified)
+    )
     conn.execute("UPDATE items SET current_state = 'RETURNED' WHERE item_id = ?", (item_id,))
     conn.execute("UPDATE claims SET status = 'HANDOVER_COMPLETED' WHERE claim_id = ?", (claim_id,))
+    
+    item_info = conn.execute("SELECT category FROM items WHERE item_id = ?", (item_id,)).fetchone()
+    if item_info:
+        conn.execute("""
+            UPDATE items 
+            SET current_state = 'RETURNED' 
+            WHERE reporter_id = ? 
+              AND report_type = 'LOST' 
+              AND category = ? 
+              AND current_state = 'REPORTED'
+        """, (claimant_id, item_info["category"]))
+
     conn.commit()
     conn.close()
 
     log_audit(session["user_id"], "EXECUTE_HANDOVER", item_id, "IN_CUSTODY", "RETURNED")
-    flash("Handover successfully completed! Item marked as RETURNED.", "success")
+    flash("Handover successfully completed! Item and associated lost reports marked as RETURNED.", "success")
     return redirect(url_for("custody_dashboard"))
 
-# --- 6. Admin Dashboard & Metrics (FR-ADM-04, FR-ADM-06) ---
+# --- 7. Inquiries ---
+@app.route("/contact", methods=["POST"])
+def submit_contact():
+    sender_name = request.form.get("sender_name", "").strip()
+    sender_email = request.form.get("sender_email", "").strip()
+    subject = request.form.get("subject", "").strip()
+    message = request.form.get("message", "").strip()
+    is_urgent = 1 if request.form.get("is_urgent") == "on" else 0
+
+    if not (sender_name and sender_email and subject and message):
+        flash("Please fill in all inquiry fields.", "warning")
+        return redirect(url_for("index") + "#contact-us")
+
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO inquiries (sender_name, sender_email, subject, message, is_urgent) VALUES (?, ?, ?, ?, ?)",
+        (sender_name, sender_email, subject, message, is_urgent)
+    )
+    conn.commit()
+    conn.close()
+
+    flash("Your inquiry has been submitted to the Custodian Desk. We will follow up shortly.", "success")
+    return redirect(url_for("index") + "#contact-us")
+
+@app.route("/inquiry/resolve/<int:inquiry_id>", methods=["POST"])
+def resolve_inquiry(inquiry_id):
+    if session.get("role") not in ("CUSTODIAN", "ADMIN"):
+        return redirect(url_for("index"))
+
+    conn = get_db_connection()
+    conn.execute("UPDATE inquiries SET status = 'RESOLVED' WHERE inquiry_id = ?", (inquiry_id,))
+    conn.commit()
+    conn.close()
+
+    flash(f"Inquiry #{inquiry_id} marked as resolved.", "info")
+    return redirect(url_for("custody_dashboard"))
+
+# --- 8. Admin Console & CSV Audit Export ---
 @app.route("/admin")
 def admin_dashboard():
     if session.get("role") != "ADMIN":
         flash("Administrator access required.", "danger")
         return redirect(url_for("index"))
 
+    action_filter = request.args.get("action", "").strip()
+    
     conn = get_db_connection()
     metrics = {
         "total_reported": conn.execute("SELECT COUNT(*) FROM items").fetchone()[0],
@@ -266,15 +453,68 @@ def admin_dashboard():
         "pending_claims": conn.execute("SELECT COUNT(*) FROM claims WHERE status = 'PENDING_REVIEW'").fetchone()[0],
         "returned": conn.execute("SELECT COUNT(*) FROM items WHERE current_state = 'RETURNED'").fetchone()[0],
     }
-    audit_trail = conn.execute("""
-        SELECT a.*, u.name as actor_name 
+
+    sql = """
+        SELECT a.*, u.name as actor_name, u.role as actor_role
         FROM audit_logs a 
         LEFT JOIN users u ON a.actor_user_id = u.user_id 
-        ORDER BY a.timestamp DESC LIMIT 50
+    """
+    params = []
+    if action_filter:
+        sql += " WHERE a.action_type = ?"
+        params.append(action_filter)
+    sql += " ORDER BY a.timestamp DESC LIMIT 100"
+
+    audit_trail = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    return render_template("admin.html", metrics=metrics, audit_trail=audit_trail, action_filter=action_filter)
+
+@app.route("/admin/export-audit")
+def export_audit_csv():
+    """Generates and streams an official CSV export of immutable audit logs."""
+    if session.get("role") != "ADMIN":
+        flash("Unauthorized. Administrator credentials required.", "danger")
+        return redirect(url_for("index"))
+
+    conn = get_db_connection()
+    records = conn.execute("""
+        SELECT a.audit_id, a.timestamp, u.name as actor_name, u.role as actor_role, 
+               a.action_type, a.target_record_id, a.old_state, a.new_state, a.client_ip
+        FROM audit_logs a
+        LEFT JOIN users u ON a.actor_user_id = u.user_id
+        ORDER BY a.timestamp DESC
     """).fetchall()
     conn.close()
 
-    return render_template("admin.html", metrics=metrics, audit_trail=audit_trail)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Audit ID", "Timestamp (UTC)", "Actor Name", "Actor Role", 
+        "Action Type", "Target Record Ref", "Previous State", "New State", "Client IP"
+    ])
+
+    for r in records:
+        writer.writerow([
+            f"AUD-{r['audit_id']:05d}",
+            r["timestamp"],
+            r["actor_name"] or "System / Anonymous",
+            r["actor_role"] or "N/A",
+            r["action_type"],
+            r["target_record_id"],
+            r["old_state"] or "NULL",
+            r["new_state"] or "NULL",
+            r["client_ip"] or "127.0.0.1"
+        ])
+
+    output.seek(0)
+    filename = f"campus_lost_found_audit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

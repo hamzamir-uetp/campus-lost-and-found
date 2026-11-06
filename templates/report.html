@@ -1,47 +1,126 @@
 {% extends 'base.html' %}
 {% block content %}
+
 <div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card p-4 shadow-sm bg-white">
-            <h4 class="mb-3 fw-bold">Report Lost or Found Property</h4>
+    <div class="col-lg-8">
+        
+        <div class="p-4 mb-4 rounded-3 bg-white border" style="border-left: 5px solid #0f172a !important;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold text-dark mb-1">Report Campus Property</h4>
+                    <p class="text-muted small mb-0">Log a missing item notice or lodge an item discovered on campus grounds.</p>
+                </div>
+                <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back</a>
+            </div>
+        </div>
+
+        <div class="card p-4 p-md-5 bg-white shadow-sm border-0">
             <form action="/report" method="POST" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Report Type</label>
-                    <select name="report_type" class="form-select" required>
-                        <option value="LOST">I Lost an Item</option>
-                        <option value="FOUND">I Found an Item</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Category</label>
-                    <select name="category" class="form-select" required>
-                        <option value="Electronics">Electronics (Laptop, Mobile, Charger, USB)</option>
-                        <option value="Personal Belongings">Personal Belongings (Bag, Jacket, Bottle)</option>
-                        <option value="Documents/Cards">Documents / Campus Cards / Keys</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">General Description (Public)</label>
-                    <textarea name="description" class="form-control" rows="3" required placeholder="Describe appearance briefly. Do NOT post serial numbers, student card numbers, or passwords here."></textarea>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Campus Location</label>
-                        <input type="text" name="location" class="form-control" placeholder="e.g. Department Lab 2, Library Ground Floor" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Incident Date</label>
-                        <input type="date" name="event_date" class="form-control" required>
-                    </div>
-                </div>
+                
+                <!-- Report Type Selection -->
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Optional Photo (Max 5MB)</label>
-                    <input type="file" name="photo" class="form-control" accept="image/png, image/jpeg, image/webp">
-                    <small class="text-muted">Accepted formats: PNG, JPG, JPEG, WebP</small>
+                    <label class="form-label fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">1. Notice Classification</label>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <input type="radio" class="btn-check" name="report_type" id="typeLost" value="LOST" checked>
+                            <label class="btn btn-outline-danger w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="typeLost">
+                                <i class="bi bi-search fs-3"></i>
+                                <div>
+                                    <div class="fw-bold">LOST PROPERTY</div>
+                                    <small class="opacity-75">I misplaced an item and want to report it missing.</small>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="col-sm-6">
+                            <input type="radio" class="btn-check" name="report_type" id="typeFound" value="FOUND">
+                            <label class="btn btn-outline-success w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="typeFound">
+                                <i class="bi bi-box-arrow-in-down fs-3"></i>
+                                <div>
+                                    <div class="fw-bold">FOUND PROPERTY</div>
+                                    <small class="opacity-75">I discovered an item and will turn it in to security.</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Submit Report</button>
+
+                <!-- Category & Campus Location -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">Category</label>
+                        <select name="category" class="form-select" required>
+                            <option value="" disabled selected>Select category...</option>
+                            <option value="Electronics">Electronics (Laptops, Chargers, Phones)</option>
+                            <option value="Books / Documents">Books &amp; Academic Documents</option>
+                            <option value="Personal Belongings">Personal Belongings (Bags, Wallets)</option>
+                            <option value="Cards / IDs">Campus Cards, CNIC &amp; Badges</option>
+                            <option value="Clothing / Accessories">Clothing, Watches &amp; Accessories</option>
+                            <option value="Other">Other Miscellaneous</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">Campus Location</label>
+                        <input type="text" name="location" class="form-control" placeholder="e.g., CSE Dept - Lab 02, Library Hall" required>
+                    </div>
+                </div>
+
+                <!-- Event Date -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-dark">Date Lost or Discovered</label>
+                    <input type="date" name="event_date" class="form-control" required>
+                </div>
+
+                <!-- General Public Description -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-dark">General Description (Public)</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Provide general details (e.g., 'Black HP laptop charger with braided cord'). Keep sensitive serial numbers private." required></textarea>
+                    <small class="text-muted" style="font-size: 0.78rem;">
+                        <i class="bi bi-info-circle me-1"></i> This description will be visible on the public campus directory.
+                    </small>
+                </div>
+
+                <!-- Photo Attachment with Live Preview Box -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-dark">Attach Property Photo (Optional)</label>
+                    <input type="file" name="photo" id="photoInput" class="form-control" accept=".png, .jpg, .jpeg, .webp" onchange="previewImage(event)">
+                    
+                    <!-- Client-Side Live Preview Container -->
+                    <div id="imagePreviewContainer" class="mt-3 p-2 bg-light border rounded-3 text-center" style="display: none; max-width: 240px;">
+                        <img id="livePreviewImg" src="" alt="Upload Preview" class="img-fluid rounded" style="max-height: 160px; object-fit: cover;">
+                        <div class="small text-muted mt-1 font-monospace" style="font-size: 0.75rem;">Selected File Preview</div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary py-2 fw-semibold">
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i> Submit Property Report
+                    </button>
+                </div>
+
             </form>
         </div>
+
     </div>
 </div>
+
+<!-- JavaScript for Live Image Preview -->
+<script>
+    function previewImage(event) {
+        const file = event.target.files[0];
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const previewImg = document.getElementById('livePreviewImg');
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    }
+</script>
+
 {% endblock %}
